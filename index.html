@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>香港 468 工時計算表（月曆）</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #fff;
+    --primary: #1a3a5c;
+    --accent: #2c6aa0;
+    --ok: #00b894;
+    --rest: #f1f2f6;
+    --holiday: #ffeaa7;
+    --leave-annual: #d6eaf8;
+    --leave-sick: #fadbd8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang HK", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: #2d3436;
+    margin: 0;
+    padding: 16px;
+  }
+  .container { max-width: 980px; margin: 0 auto; }
+  h1 { color: var(--primary); margin: 0 0 4px; font-size: 1.6rem; }
+  .subtitle { color: #636e72; margin: 0 0 20px; font-size: 0.95rem; }
+
+  .controls {
+    background: var(--card);
+    padding: 14px 18px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: flex-end;
+    margin-bottom: 18px;
+  }
+  .controls label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; color: #555; }
+  .controls input, .controls select {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 15px;
+    min-width: 110px;
+  }
+  .controls button, .confirm-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  .controls button:hover, .confirm-btn:hover { background: var(--primary); }
+  .confirm-btn { background: #00b894; font-weight: 600; }
+  .confirm-btn:disabled { background: #b2bec3; cursor: not-allowed; }
+
+  .summary {
+    background: var(--card);
+    padding: 14px 18px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 18px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .summary .label { font-size: 12px; color: #666; }
+  .summary .value { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+  .summary .value.money { color: var(--ok); }
+
+  .calendar {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .cal-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--primary);
+    color: #fff;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .cal-header div { padding: 10px 4px; }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #eee;
+  }
+  .day {
+    background: #fff;
+    min-height: 100px;
+    padding: 6px;
+    font-size: 12.5px;
+    position: relative;
+  }
+  .day.empty { background: #fafafa; }
+  .day.weekend { background: var(--rest); }
+  .day.holiday { background: var(--holiday); }
+  .day.leave-annual { background: var(--leave-annual) !important; }
+  .day.leave-sick { background: var(--leave-sick) !important; }
+  .day-num { font-weight: 700; font-size: 1.1rem; }
+  .day-type { font-size: 11px; color: #444; margin-top: 1px; line-height: 1.3; }
+  .day-leave {
+    margin-top: 5px;
+    width: 100%;
+    font-size: 11.5px;
+    padding: 3px 4px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  .day-hours { font-size: 12px; margin-top: 4px; font-weight: 600; }
+  .symbol { font-size: 16px; margin-right: 2px; }
+
+  .confirm-box {
+    background: var(--card);
+    padding: 14px 18px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .confirm-box p { margin: 0 0 10px; font-size: 14px; color: #555; }
+  .confirmed-msg { color: var(--ok); font-weight: 600; margin-top: 8px; }
+
+  .legend {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+    margin: 8px 0 16px;
+    flex-wrap: wrap;
+  }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend i { width: 16px; height: 16px; border-radius: 3px; display: inline-block; }
+  .i-rest { background: var(--rest); border: 1px solid #ddd; }
+  .i-hol { background: var(--holiday); border: 1px solid #ddd; }
+  .i-work { background: #fff; border: 1px solid #ddd; }
+  .i-annual { background: var(--leave-annual); border: 1px solid #ddd; }
+  .i-sick { background: var(--leave-sick); border: 1px solid #ddd; }
+
+  .history {
+    background: var(--card);
+    padding: 16px 18px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  .history h2 { margin: 0 0 10px; font-size: 1.2rem; color: var(--primary); }
+  .note { font-size: 12px; color: #888; margin-top: 8px; }
+  .export-btn {
+    background: #636e72;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  @media (max-width: 640px) {
+    .day { min-height: 90px; font-size: 12px; }
+    .cal-header div { font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>香港 468 工時計算表</h1>
+  <p class="subtitle">月曆顯示｜每日 3.5 小時（09:00–12:30）｜六日＋紅日休息｜滾動 4 星期 ≤ 68</p>
+
+  <div class="controls">
+    <div>
+      <label>年份</label>
+      <select id="year"></select>
+    </div>
+    <div>
+      <label>月份</label>
+      <select id="month">
+        <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+        <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+        <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+        <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+      </select>
+    </div>
+    <div>
+      <label>該月時薪 (HK$)</label>
+      <input type="number" id="rate" min="0" step="0.1" value="0" oninput="recalc()">
+    </div>
+    <div>
+      <button onclick="generate()">生成月曆</button>
+    </div>
+  </div>
+
+  <div class="summary" id="summary" style="display:none;">
+    <div><div class="label">應上班天數</div><div class="value" id="workDays">0</div></div>
+    <div><div class="label">計薪天數</div><div class="value" id="paidDays">0</div></div>
+    <div><div class="label">當月月薪</div><div class="value money" id="salary">HK$0</div></div>
+    <div><div class="label">本月總工時</div><div class="value" id="totalHours">0</div></div>
+  </div>
+
+  <div class="legend">
+    <span><i class="i-work"></i> 上班</span>
+    <span><i class="i-rest"></i> 星期六／日</span>
+    <span><i class="i-hol"></i> 公眾假期</span>
+    <span><i class="i-annual"></i> <span class="symbol">🌴</span> 休假（無薪）</span>
+    <span><i class="i-sick"></i> <span class="symbol">🤒</span> 病假（無薪）</span>
+  </div>
+
+  <div class="calendar" id="calendar"></div>
+
+  <div class="confirm-box" id="confirmBox" style="display:none;">
+    <p>確認本月已收到款項後，按下方按鈕儲存紀錄</p>
+    <button class="confirm-btn" id="confirmBtn" onclick="confirmMonth()">本月確認收錢</button>
+    <div id="confirmedMsg" class="confirmed-msg"></div>
+  </div>
+
+  <div class="history">
+    <h2>已確認收錢紀錄（按月）</h2>
+    <div id="historyList"></div>
+    <button class="export-btn" onclick="exportHistory()">匯出紀錄 (JSON)</button>
+    <p class="note">紀錄獨立儲存在本機瀏覽器（localStorage）。可匯出備份。</p>
+  </div>
+</div>
+
+<script>
+const HOURS = 3.5;
+const holidayNames = {
+  "2026-01-01":"一月一日","2026-02-17":"農曆年初一","2026-02-18":"農曆年初二","2026-02-19":"農曆年初三",
+  "2026-04-03":"耶穌受難節","2026-04-04":"耶穌受難節翌日","2026-04-06":"清明節翌日","2026-04-07":"復活節星期一翌日",
+  "2026-05-01":"勞動節","2026-05-25":"佛誕翌日","2026-06-19":"端午節","2026-07-01":"特區成立紀念日",
+  "2026-09-26":"中秋節翌日","2026-10-01":"國慶日","2026-10-19":"重陽節翌日","2026-12-25":"聖誕節","2026-12-26":"聖誕節後第一個周日",
+  "2027-01-01":"一月一日","2027-02-06":"農曆年初一","2027-02-08":"農曆年初三","2027-02-09":"農曆年初四",
+  "2027-03-26":"耶穌受難節","2027-03-27":"耶穌受難節翌日","2027-03-29":"復活節星期一","2027-04-05":"清明節",
+  "2027-05-01":"勞動節","2027-05-13":"佛誕","2027-06-09":"端午節","2027-07-01":"特區成立紀念日",
+  "2027-09-16":"中秋節翌日","2027-10-01":"國慶日","2027-10-08":"重陽節","2027-12-25":"聖誕節","2027-12-27":"聖誕節後第一個周日",
+  "2028-01-01":"一月一日","2028-01-26":"農曆年初一","2028-01-27":"農曆年初二","2028-01-28":"農曆年初三",
+  "2028-04-04":"清明節","2028-04-14":"耶穌受難節","2028-04-15":"耶穌受難節翌日","2028-04-17":"復活節星期一",
+  "2028-05-01":"勞動節","2028-05-02":"佛誕","2028-07-01":"特區成立紀念日","2028-10-02":"國慶日翌日",
+  "2028-10-04":"中秋節翌日","2028-10-26":"重陽節","2028-12-25":"聖誕節","2028-12-26":"聖誕節後第一個周日"
+};
+const weekNames = ["日","一","二","三","四","五","六"];
+
+function pad(n){ return n<10?"0"+n:n; }
+function fmt(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function isWeekend(d){ const w=d.getDay(); return w===0||w===6; }
+function getHolidayName(d){ return holidayNames[fmt(d)] || null; }
+
+const yearSel = document.getElementById("year");
+const now = new Date();
+for(let y=2025;y<=2029;y++){
+  const o=document.createElement("option");
+  o.value=y; o.text=y;
+  if(y===now.getFullYear()) o.selected=true;
+  yearSel.appendChild(o);
+}
+document.getElementById("month").value = now.getMonth()+1;
+
+function getKey(){
+  const y = document.getElementById("year").value;
+  const m = document.getElementById("month").value.padStart(2,"0");
+  return `confirmed_${y}_${m}`;
+}
+
+function generate(){
+  const year = +document.getElementById("year").value;
+  const month = +document.getElementById("month").value;
+  const first = new Date(year, month-1, 1);
+  const days = new Date(year, month, 0).getDate();
+  const startDow = first.getDay();
+
+  let html = `<div class="cal-header">`;
+  weekNames.forEach(w => html += `<div>${w}</div>`);
+  html += `</div><div class="cal-grid">`;
+
+  for(let i=0;i<startDow;i++) html += `<div class="day empty"></div>`;
+
+  for(let d=1;d<=days;d++){
+    const date = new Date(year, month-1, d);
+    const ds = fmt(date);
+    const weekend = isWeekend(date);
+    const holName = getHolidayName(date);
+    const type = holName ? holName : (weekend ? "休息" : "上班");
+    const isWork = !holName && !weekend;
+    let cls = holName ? "holiday" : (weekend ? "weekend" : "");
+
+    html += `<div class="day ${cls}" data-date="${ds}" data-work="${isWork}">
+      <div class="day-num">${d}</div>
+      <div class="day-type">${type}</div>
+      ${isWork ? `<select class="day-leave" onchange="recalc()">
+        <option value="無">無請假</option>
+        <option value="休假">🌴 休假（無薪）</option>
+        <option value="病假">🤒 病假（無薪）</option>
+      </select>
+      <div class="day-hours">3.5 小時</div>` : `<div class="day-hours">${holName?"假期":"休息"}</div>`}
+    </div>`;
+  }
+  html += `</div>`;
+  document.getElementById("calendar").innerHTML = html;
+  document.getElementById("summary").style.display = "grid";
+  document.getElementById("confirmBox").style.display = "block";
+  checkAlreadyConfirmed();
+  recalc();
+}
+
+function recalc(){
+  const days = document.querySelectorAll(".day[data-date]");
+  let workDays=0, paidDays=0, totalHours=0;
+  days.forEach(el => {
+    const isWork = el.dataset.work === "true";
+    el.classList.remove("leave-annual","leave-sick");
+    if(!isWork) return;
+    workDays++;
+    const leaveSel = el.querySelector(".day-leave");
+    const leave = leaveSel ? leaveSel.value : "無";
+    const paid = leave === "無";
+    if(paid){ paidDays++; totalHours += HOURS; }
+    else if(leave === "休假") el.classList.add("leave-annual");
+    else if(leave === "病假") el.classList.add("leave-sick");
+    const hoursEl = el.querySelector(".day-hours");
+    if(hoursEl) hoursEl.textContent = paid ? "3.5 小時" : "0（無薪）";
+  });
+  const rate = +document.getElementById("rate").value || 0;
+  const salary = paidDays * HOURS * rate;
+  document.getElementById("workDays").textContent = workDays;
+  document.getElementById("paidDays").textContent = paidDays;
+  document.getElementById("salary").textContent = "HK$" + salary.toFixed(2);
+  document.getElementById("totalHours").textContent = totalHours.toFixed(1);
+}
+
+function checkAlreadyConfirmed(){
+  const key = getKey();
+  const hist = JSON.parse(localStorage.getItem("hk468_payment_records") || "[]");
+  const found = hist.find(e => e.key === key);
+  const btn = document.getElementById("confirmBtn");
+  const msg = document.getElementById("confirmedMsg");
+  if(found){
+    btn.disabled = true;
+    btn.textContent = "本月已確認";
+    msg.textContent = `已於 ${found.date} 確認收錢（月薪 HK$${found.salary}）`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = "本月確認收錢";
+    msg.textContent = "";
+  }
+}
+
+function confirmMonth(){
+  const key = getKey();
+  let hist = JSON.parse(localStorage.getItem("hk468_payment_records") || "[]");
+  if(hist.find(e => e.key === key)) return;
+
+  const year = document.getElementById("year").value;
+  const month = document.getElementById("month").value.padStart(2,"0");
+  const rate = +document.getElementById("rate").value || 0;
+  const paid = +document.getElementById("paidDays").textContent || 0;
+  const salary = (paid * HOURS * rate).toFixed(2);
+
+  hist.push({
+    key, year, month,
+    paidDays: paid,
+    rate,
+    salary,
+    date: new Date().toISOString().slice(0,10)
+  });
+  localStorage.setItem("hk468_payment_records", JSON.stringify(hist));
+  checkAlreadyConfirmed();
+  renderHistory();
+}
+
+function renderHistory(){
+  const data = JSON.parse(localStorage.getItem("hk468_payment_records") || "[]");
+  if(!data.length){
+    document.getElementById("historyList").innerHTML = "<p>暫無紀錄</p>";
+    return;
+  }
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr style="background:#1a3a5c;color:#fff;">
+    <th style="padding:8px;">年份</th><th>月份</th><th>計薪天數</th><th>時薪</th><th>月薪</th><th>確認日期</th></tr></thead><tbody>`;
+  data.slice().reverse().forEach(e=>{
+    html += `<tr style="border-bottom:1px solid #eee;text-align:center;">
+      <td style="padding:8px;">${e.year}</td><td>${parseInt(e.month)}</td><td>${e.paidDays}</td>
+      <td>${e.rate}</td><td>HK$${e.salary}</td><td>${e.date}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById("historyList").innerHTML = html;
+}
+
+function exportHistory(){
+  const data = JSON.parse(localStorage.getItem("hk468_payment_records") || "[]");
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "hk468_收錢紀錄.json";
+  a.click();
+}
+
+renderHistory();
+setTimeout(generate, 80);
+</script>
+</body>
+</html>
